@@ -508,7 +508,26 @@ function drawGame() {
             let sX = surv.x * w;
             let sY = surv.y * h;
 
-            drawAstronaut(gameCtx, sX, sY, surv.size);
+            // Draw Astronaut Inline
+            gameCtx.fillStyle = '#ffffff';
+            gameCtx.shadowBlur = 10;
+            gameCtx.shadowColor = '#00ffff';
+            gameCtx.beginPath();
+            gameCtx.arc(sX, sY, surv.size / 2, 0, Math.PI * 2);
+            gameCtx.fill();
+            gameCtx.fillStyle = '#00aaff';
+            gameCtx.beginPath();
+            gameCtx.ellipse(sX, sY - 2, surv.size / 4, surv.size / 5, 0, 0, Math.PI * 2);
+            gameCtx.fill();
+            gameCtx.strokeStyle = '#ffffff';
+            gameCtx.lineWidth = 3;
+            gameCtx.beginPath();
+            gameCtx.moveTo(sX - surv.size / 2, sY);
+            gameCtx.lineTo(sX - surv.size / 2 - 5, sY - 5);
+            gameCtx.moveTo(sX + surv.size / 2, sY);
+            gameCtx.lineTo(sX + surv.size / 2 + 5, sY - 10);
+            gameCtx.stroke();
+            gameCtx.shadowBlur = 0;
 
             if (Math.abs(pX - sX) < (playerWidth / 2 + surv.size / 2) && Math.abs(pY - sY) < (playerHeight / 2 + surv.size / 2)) {
                 createExplosion(sX, sY, '#00ffff');
