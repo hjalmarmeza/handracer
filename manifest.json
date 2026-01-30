@@ -1,0 +1,21 @@
+{
+    "name": "HandRacer",
+    "short_name": "HandRacer",
+    "start_url": "./index.html",
+    "display": "fullscreen",
+    "background_color": "#000000",
+    "theme_color": "#00f2ff",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
