@@ -130,21 +130,24 @@ body {
     box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
-/* Camera Preview (Picture in Picture) */
+/* Camera Preview (Top Right - Out of way) */
 .camera-preview {
     position: absolute;
-    bottom: 20px;
+    top: 90px;
     right: 20px;
-    width: 160px;
-    height: 120px;
-    border-radius: 12px;
+    width: 100px;
+    /* Smaller */
+    height: 75px;
+    border-radius: 8px;
     overflow: hidden;
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     z-index: 5;
     background: #000;
     transform: scaleX(-1);
-    /* Mirror effect fix */
+    opacity: 0.7;
+    /* See-through */
+    pointer-events: none;
 }
 
 #output-canvas {
