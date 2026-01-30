@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HandRacer | Control Gestual</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <h1>HandRacer</h1>
+            <p>Cargando IA de visión...</p>
+            <div class="spinner"></div>
+            <p style="font-size: 0.8rem; margin-top:20px; opacity:0.7">Por favor permite el acceso a la cámara</p>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <main class="game-container">
+
+        <!-- Score & HUD -->
+        <div class="hud">
+            <div class="score-box">
+                <span class="label">SCORE</span>
+                <span id="score-val">0</span>
+            </div>
+            <div class="status-box">
+                <div id="hand-status" class="status-indicator waiting">Esperando Mano...</div>
+            </div>
+        </div>
+
+
+        <!-- Tutorials -->
+        <div class="tutorial-hint" id="tutorial-msg">Mano abierta = Mover 🖐️ | Puño cerrado = Disparar ✊</div>
+
+
+        <!-- Game Over Modal -->
+        <div id="game-over" class="game-over-modal">
+            <h2>Crash!</h2>
+            <p class="final-score">Puntuación: <span id="final-score-val">0</span></p>
+            <button class="btn-restart" onclick="resetGame()">Jugar de Nuevo</button>
+        </div>
+
+        <!-- The Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Hidden Video Element for MediaPipe -->
+        <video id="input-video" style="display:none"></video>
+
+        <!-- Debug View (Optional, small camera preview) -->
+        <div class="camera-preview">
+            <canvas id="output-canvas"></canvas>
+        </div>
+
+    </main>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>
