@@ -204,8 +204,8 @@ function spawnBoss() {
         y: -0.2, // enters from top
         width: 150,
         height: 100,
-        maxHealth: 50 * level, // Health scales with level
-        health: 50 * level,
+        maxHealth: 30 * level, // Lower health (was 50)
+        health: 30 * level,
         mode: 'entering', // entering, fighting
         moveDir: 1,
         lastShoot: 0
@@ -403,15 +403,15 @@ function drawGame() {
             if (boss.x > 0.9 || boss.x < 0.1) boss.moveDir *= -1;
 
             // Shoot
-            if (Date.now() - boss.lastShoot > 1000) {
+            if (Date.now() - boss.lastShoot > 1800) { // Slower shooting (was 1000)
                 boss.lastShoot = Date.now();
                 // Shoot towards player
                 let angle = Math.atan2(pY - bY, pX - bX);
                 bossBullets.push({
                     x: boss.x,
                     y: boss.y,
-                    vx: Math.cos(angle) * 0.01,
-                    vy: Math.sin(angle) * 0.01
+                    vx: Math.cos(angle) * 0.008, // Slower bullets (was 0.01)
+                    vy: Math.sin(angle) * 0.008
                 });
             }
         }
@@ -459,7 +459,21 @@ function drawGame() {
 
         let bulletHit = false;
 
-        // Boss Hit
+        // 1. DEFENSE: Hit Boss Bullets
+        for (let m = bossBullets.length - 1; m >= 0; m--) {
+            let bb = bossBullets[m];
+            let bbX = bb.x * w;
+            let bbY = bb.y * h;
+
+            if (Math.abs(bX - bbX) < 20 && Math.abs(bY - bbY) < 20) {
+                createExplosion(bbX, bbY, '#ff0000', 8);
+                bossBullets.splice(m, 1); // Destroy boss bullet
+                bulletHit = true;
+                break;
+            }
+        }
+
+        // 2. Boss Hit
         if (boss && boss.mode === 'fighting') {
             let bossX = boss.x * w;
             let bossY = boss.y * h;
