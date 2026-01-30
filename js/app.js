@@ -31,7 +31,7 @@ function playSound(type) {
         osc.type = 'square';
         osc.frequency.setValueAtTime(800, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.1);
@@ -79,31 +79,6 @@ function createExplosion(x, y, color) {
     }
 }
 
-function detectFist(landmarks) {
-    // A simple heuristic: check if fingertips are close to wrist or Palm center
-    // Tips: 8, 12, 16, 20. Wrist: 0
-    // If all tips are below their PIP joints (6, 10, 14, 18) it's likely a fist in this orientation
-    // But since hand can be anywhere, let's use distance from wrist.
-
-    const wrist = landmarks[0];
-    const tips = [8, 12, 16, 20];
-    let foldedCount = 0;
-
-    // Calculate simple distance-based folding
-    // Or just check y-coordinate relative to PIP joint? Simpler:
-    // If tip is "lower" (higher Y value in screen coords) than the knuckle?
-    // Let's use a simpler "Compactness" check.
-
-    let tipSum = 0;
-    tips.forEach(idx => {
-        let d = Math.sqrt(Math.pow(landmarks[idx].x - wrist.x, 2) + Math.pow(landmarks[idx].y - wrist.y, 2));
-        tipSum += d;
-    });
-
-    // Threshold found experimentally
-    return tipSum < 0.8; // Normalized coords
-}
-
 // MediaPipe Setup
 function onResults(results) {
     if (loadingScreen.style.display !== 'none') {
@@ -129,26 +104,34 @@ function onResults(results) {
 
         const landmarks = results.multiHandLandmarks[0];
 
-        // Control Logic: X position
+        // --- CONTROL LOGIC: X POSITION ---
         let x = landmarks[9].x;
-        playerX = playerX + ((1 - x) - playerX) * 0.15; // Smooth movement
 
-        // Shoot Logic (Fist Detection - simple check if tips are low)
-        // Check if index finger tip (8) is below index finger mcp (5) -> Folded
-        // Actually, just checking if Index Finger Tip is below the middle knuckle working well for "Clinch"
-        // Let's use a simpler bool: is Index Tip close to wrist?
+        // INCREASED SENSITIVITY FOR MOBILE
+        // 1. Flip (Camera is mirrored)
+        let targetX = (1 - x);
+
+        // 2. Range Mapping: Map the center 60% of screen to full width
+        // Input range expected: 0.2 to 0.8 -> Output: 0.0 to 1.0
+        // This means user doesn't have to move hand to extreme edges of phone
+        targetX = (targetX - 0.2) / (0.6);
+        targetX = Math.max(0, Math.min(1, targetX)); // Clamp to 0-1
+
+        // 3. Faster smoothing (0.25 was 0.15) for snappier feel
+        playerX = playerX + (targetX - playerX) * 0.25;
+
+        // --- SHOOT LOGIC: FIST DETECTION ---
+        // Check distance between Index Finger Tip (8) and Wrist (0)
+        // This is robust for detecting "closed hand" vs "open hand" regardless of rotation
         const wrist = landmarks[0];
         const indexTip = landmarks[8];
         const dist = Math.sqrt(Math.pow(indexTip.x - wrist.x, 2) + Math.pow(indexTip.y - wrist.y, 2));
 
-        // Threshold for fist/pinch
-        if (dist < 0.15) { // Folded
-            if (!isFist) {
-                isFist = true;
-                statusEl.innerText = "FIST (SHOOT)";
-                statusEl.classList.add('active');
-                shoot();
-            }
+        // Threshold: < 0.2 usually means finger is curled in towards palm
+        if (dist < 0.2) {
+            isFist = true;
+            statusEl.innerText = "FIST (AUTO-FIRE)";
+            statusEl.classList.add('active');
         } else {
             isFist = false;
             statusEl.innerText = "OPEN HAND";
@@ -162,6 +145,7 @@ function onResults(results) {
         handDetected = false;
         statusEl.innerText = "NO SIGNAL";
         statusEl.classList.add('waiting');
+        statusEl.classList.remove('active');
     }
     canvasCtx.restore();
 }
@@ -192,21 +176,21 @@ resizeGame();
 let obstacles = [];
 let coins = [];
 let bullets = [];
-let enemies = []; // Targets to shoot
+let survivors = []; // "Personitas" to save
 const playerWidth = 60;
 const playerHeight = 80;
 
 function shoot() {
     if (!gameRunning) return;
     const now = Date.now();
-    if (now - lastShotTime < 200) return; // Cooldown
+    if (now - lastShotTime < 150) return; // 150ms = fast auto-fire
 
     lastShotTime = now;
     playSound('shoot');
     bullets.push({
         x: playerX,
         y: playerY - 0.05,
-        speed: 0.02
+        speed: 0.025
     });
 }
 
@@ -220,17 +204,17 @@ function spawnProps() {
             x: Math.random(),
             y: -0.1,
             size: size,
-            speed: (0.005 + (score * 0.00005)) * speedMultiplier,
+            speed: (0.005 + (score * 0.00001)) * speedMultiplier,
             type: 'rock'
         });
     }
 
-    // Spawn Enemy Target (Purple Orb)
-    if (Math.random() < 0.015) {
-        enemies.push({
+    // Spawn Survivors (Astronauts) - RARE & VALUABLE
+    if (Math.random() < 0.008) {
+        survivors.push({
             x: Math.random(),
             y: -0.1,
-            size: 35,
+            size: 30, // Hitbox size
             speed: 0.004 * speedMultiplier
         });
     }
@@ -250,7 +234,7 @@ function resetGame() {
     obstacles = [];
     coins = [];
     bullets = [];
-    enemies = [];
+    survivors = [];
     particles = [];
     score = 0;
     speedMultiplier = 1;
@@ -297,6 +281,35 @@ function drawSpaceShip(ctx, x, y, width, height) {
     ctx.fill();
 }
 
+function drawAstronaut(ctx, x, y, size) {
+    // White Suit
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#00ffff';
+
+    // Body
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Visor
+    ctx.fillStyle = '#00aaff';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 2, size / 4, size / 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Waving hands
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - size / 2, y);
+    ctx.lineTo(x - size / 2 - 5, y - 5); // Left hand up
+    ctx.moveTo(x + size / 2, y);
+    ctx.lineTo(x + size / 2 + 5, y - 10); // Right hand waving
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
 function drawGame() {
     if (!gameRunning) return;
 
@@ -335,6 +348,11 @@ function drawGame() {
     const pY = playerY * h;
     drawSpaceShip(gameCtx, pX, pY, playerWidth, playerHeight);
 
+    // AUTO FIRE LOGIC
+    if (isFist) {
+        shoot();
+    }
+
     // BULLETS
     gameCtx.fillStyle = '#00f2ff';
     gameCtx.shadowBlur = 10;
@@ -349,79 +367,46 @@ function drawGame() {
 
         if (b.y < -0.1) bullets.splice(i, 1);
 
-        // Bullet Collision with Enemies (Purple Orbs)
+        // Check collisions (Bullet vs Rock)
         let bulletHit = false;
-        for (let j = enemies.length - 1; j >= 0; j--) {
-            let en = enemies[j];
-            let eX = en.x * w;
-            let eY = en.y * h;
 
-            if (Math.abs(bX - eX) < en.size && Math.abs(bY - eY) < en.size) {
-                createExplosion(eX, eY, '#a000ff'); // Purple explosion
-                score += 200; // DOUBLE SCORE (was 100)
+        for (let k = obstacles.length - 1; k >= 0; k--) {
+            let obs = obstacles[k];
+            let oX = obs.x * w;
+            let oY = obs.y * h;
+
+            if (Math.abs(bX - oX) < obs.size && Math.abs(bY - oY) < obs.size) {
+                createExplosion(oX, oY, '#ff0055'); // Explosion
+                score += 50; // Destroy Rock
                 scoreEl.innerText = score;
-                playSound('coin');
+                playSound('shoot');
 
-                enemies.splice(j, 1);
+                obstacles.splice(k, 1);
                 bulletHit = true;
                 break;
             }
         }
-
-        // Bullet Collision with Obstacles (Red Rocks) - NOW DESTRUCTIBLE
-        if (!bulletHit) {
-            for (let k = obstacles.length - 1; k >= 0; k--) {
-                let obs = obstacles[k];
-                let oX = obs.x * w;
-                let oY = obs.y * h;
-
-                if (Math.abs(bX - oX) < obs.size && Math.abs(bY - oY) < obs.size) {
-                    createExplosion(oX, oY, '#ff0055'); // Red explosion
-                    score += 50; // Points for clearing path
-                    scoreEl.innerText = score;
-                    playSound('shoot'); // Small hit sound
-
-                    obstacles.splice(k, 1);
-                    bulletHit = true;
-                    break;
-                }
-            }
-        }
-
-        if (bulletHit) {
-            bullets.splice(i, 1);
-        }
+        if (bulletHit) bullets.splice(i, 1);
     }
 
-    // ENEMIES (Purple Orbs)
-    gameCtx.fillStyle = '#a000ff';
-    gameCtx.shadowColor = '#a000ff';
-    gameCtx.shadowBlur = 15;
-    for (let i = enemies.length - 1; i >= 0; i--) {
-        let en = enemies[i];
-        en.y += en.speed;
-        let eX = en.x * w;
-        let eY = en.y * h;
+    // SURVIVORS (Astronauts)
+    for (let i = survivors.length - 1; i >= 0; i--) {
+        let surv = survivors[i];
+        surv.y += surv.speed;
+        let sX = surv.x * w;
+        let sY = surv.y * h;
 
-        // Draw Hexagon or Orb
-        gameCtx.beginPath();
-        gameCtx.arc(eX, eY, en.size / 2, 0, Math.PI * 2);
-        gameCtx.fill();
+        drawAstronaut(gameCtx, sX, sY, surv.size);
 
-        // Target Reticle
-        gameCtx.strokeStyle = 'white';
-        gameCtx.lineWidth = 2;
-        gameCtx.strokeRect(eX - 10, eY - 10, 20, 20);
-
-        if (en.y > 1.1) enemies.splice(i, 1);
-
-        // Collision with player (Damage or Death?)
-        if (Math.abs(pX - eX) < (playerWidth / 2 + en.size / 2) && Math.abs(pY - eY) < (playerHeight / 2 + en.size / 2)) {
-            playSound('crash');
-            gameRunning = false;
-            isGameOver = true;
-            finalScoreEl.innerText = score;
-            gameOverScreen.style.display = 'block';
+        // Touch to Save
+        if (Math.abs(pX - sX) < (playerWidth / 2 + surv.size / 2) && Math.abs(pY - sY) < (playerHeight / 2 + surv.size / 2)) {
+            createExplosion(sX, sY, '#ffffff'); // Sanctified explosion
+            score += 500; // BIG Score
+            scoreEl.innerText = score;
+            playSound('coin');
+            survivors.splice(i, 1);
+        } else if (surv.y > 1.1) {
+            survivors.splice(i, 1);
         }
     }
 
@@ -473,7 +458,7 @@ function drawGame() {
             scoreEl.innerText = score;
             createExplosion(cX, cY, '#ffe600');
             coins.splice(i, 1);
-            speedMultiplier += 0.02;
+            speedMultiplier += 0.02; // Collecting coins speeds up game
         }
 
         if (coin.y > 1.1) coins.splice(i, 1);
@@ -494,11 +479,7 @@ function drawGame() {
     }
     gameCtx.globalAlpha = 1.0;
 
-    // Passive Score
-    if (gameRunning) {
-        score++;
-        if (score % 10 === 0) scoreEl.innerText = score;
-    }
+    // Passive Score - REMOVED
 
     if (gameRunning) requestAnimationFrame(drawGame);
 }
