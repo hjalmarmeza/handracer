@@ -348,6 +348,8 @@ function saveHighScore() {
 function drawGame() {
     if (!gameRunning) return;
 
+    spawnProps(); // Spawn new elements
+
     // Background Gradient Cycle based on Level/Score
     const w = gameCanvas.width;
     const h = gameCanvas.height;
